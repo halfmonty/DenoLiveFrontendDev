@@ -2,10 +2,9 @@
 const CONFIG = {
   port: 8000,
   publicDir: './public',
-  watchDir: './src',
+  watchDir: './public/js',
   buildOutput: './public/js',
-  entryPoint: './src/main.ts',
-  debounceMs: 100,
+  entryPoint: './src/main.ts'
 } as const;
 
 // MIME types for file serving
@@ -76,8 +75,7 @@ async function serveFile(filePath: string): Promise<Response> {
     return new Response(body, {
       headers: {
         'Content-Type': getContentType(filePath),
-        'Content-Length': fileInfo.size.toString(),
-        // 'Cache-Control': `public, max-age=${CONFIG.cacheMaxAge}`,
+        'Content-Length': fileInfo.size.toString()
       },
     });
   } catch (error) {
@@ -100,12 +98,6 @@ function handleWebSocket(request: Request): Response {
   socket.onopen = () => {
     console.log('🤝 Live reload client connected');
     reloadConnections.add(socket);
-  };
-
-  socket.onmessage = (event) => {
-    if (event.data === 'ping') {
-      socket.send('pong');
-    }
   };
 
   socket.onclose = () => {
@@ -145,45 +137,6 @@ function handleReloadApi(_request: Request): Response {
   });
 }
 
-// Build system
-async function bundleFile(entryPoints: string[], outdir: string): Promise<BuildResult> {
-  try {
-    const command = new Deno.Command('deno', {
-      args: [
-        'bundle',
-        '--external',
-        'https://esm.sh/phaser@4.0.0-rc.4',
-        ...entryPoints,
-        '--outdir',
-        outdir,
-      ],
-      stdout: 'piped',
-      stderr: 'piped',
-    });
-
-    const { code, stdout, stderr } = await command.output();
-
-    const stdoutText = new TextDecoder().decode(stdout);
-    const stderrText = new TextDecoder().decode(stderr);
-
-    if (code === 0) {
-      console.log('Bundle created successfully!');
-      console.log('Output:', stdoutText);
-      return { success: true, output: stdoutText };
-    } else {
-      console.error('Bundle failed with exit code:', code);
-      console.error('Error:', stderrText);
-      return { success: false, error: stderrText };
-    }
-  } catch (error) {
-    console.error('Failed to execute deno bundle:', error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
-}
-
 async function triggerReload(): Promise<void> {
   try {
     const response = await fetch(`http://localhost:${CONFIG.port}/api/reload`, {
@@ -200,56 +153,19 @@ async function triggerReload(): Promise<void> {
   }
 }
 
-async function buildGame(): Promise<void> {
-  try {
-    console.log('🔨 Building game...');
-
-    const result = await bundleFile([CONFIG.entryPoint], CONFIG.buildOutput);
-
-    if (result.success) {
-      console.log('✅ Build complete!');
-      // Trigger reload if this is a rebuild (not initial build)
-      if (Deno.args.includes('--reload')) {
-        await triggerReload();
-      }
-    } else {
-      console.error('❌ Build failed:', result.error);
-      Deno.exit(1);
-    }
-  } catch (error) {
-    console.error('❌ Build failed:', error);
-    Deno.exit(1);
-  }
-}
-
 // Watch mode
 async function startWatchMode(): Promise<void> {
   console.log('👀 Starting watch mode...');
 
-  // Initial build
-  await buildGame();
-
   // Watch for file changes
   const watcher = Deno.watchFs([CONFIG.watchDir], { recursive: true });
-  let buildTimeout: number | null = null;
 
   for await (const event of watcher) {
-    const isTypeScriptFile = event.paths.some((path) => path.endsWith('.ts'));
+    const isTypeScriptFile = event.paths.some((path) => path.endsWith('.js'));
     
     if (event.kind === 'modify' && isTypeScriptFile) {
       console.log('📝 File changed:', event.paths);
-
-      // Debounce builds
-      if (buildTimeout) {
-        clearTimeout(buildTimeout);
-      }
-
-      buildTimeout = setTimeout(async () => {
-        console.log('🔨 Rebuilding...');
-        await buildGame();
-        console.log('✅ Rebuild complete!');
-        await triggerReload();
-      }, CONFIG.debounceMs);
+      await triggerReload();
     }
   }
 }
