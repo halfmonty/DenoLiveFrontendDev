@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="/style.css">
+    <title>Deno Live Reload</title>
+</head>
+
+<body>
+    <div class="dev-info">
+        <span class="reload-status disconnected" id="reload-status"></span>
+        <span id="reload-text">Live Reload</span>
+    </div>
+    <div id="app"></div>
+
+    <!-- Load our code -->
+    <script type="module" src="js/main.js"></script>
+
+    <!-- Live reload script -->
+    <script>
+        // Live reload WebSocket connection
+        let reloadWs = null;
+        const reloadStatus = document.getElementById('reload-status');
+        const reloadText = document.getElementById('reload-text');
+
+        function connectReloadWs() {
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            reloadWs = new WebSocket(`${protocol}//${window.location.host}/ws/reload`);
+
+            reloadWs.onopen = () => {
+                console.log('🔄 Live reload connected');
+                reloadStatus.className = 'reload-status connected';
+                reloadText.textContent = 'Live Reload ✓';
+            };
+
+            reloadWs.onmessage = (event) => {
+                if (event.data === 'reload') {
+                    console.log('🔄 Reloading page...');
+                    window.location.reload();
+                }
+            };
+
+            reloadWs.onclose = () => {
+                console.log('🔄 Live reload disconnected');
+                reloadStatus.className = 'reload-status disconnected';
+                reloadText.textContent = 'Live Reload ✗';
+
+                // Attempt to reconnect after 2 seconds
+                setTimeout(connectReloadWs, 2000);
+            };
+
+            reloadWs.onerror = (error) => {
+                console.log('🔄 Live reload error:', error);
+            };
+        }
+
+        // Connect to live reload WebSocket
+        connectReloadWs();
+    </script>
+</body>
+</html>
