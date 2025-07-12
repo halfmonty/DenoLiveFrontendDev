@@ -2,7 +2,6 @@
 const CONFIG = {
   port: 8000,
   publicDir: './public',
-  watchDir: './public/js',
   buildOutput: './public/js',
   entryPoint: './src/main.ts'
 } as const;
@@ -27,13 +26,6 @@ const MIME_TYPES: Record<string, string> = {
   '.ttf': 'font/ttf',
   '.otf': 'font/otf',
 } as const;
-
-// Types
-interface BuildResult {
-  success: boolean;
-  output?: string;
-  error?: string;
-}
 
 interface ReloadResponse {
   success: boolean;
@@ -158,7 +150,7 @@ async function startWatchMode(): Promise<void> {
   console.log('👀 Starting watch mode...');
 
   // Watch for file changes
-  const watcher = Deno.watchFs([CONFIG.watchDir], { recursive: true });
+  const watcher = Deno.watchFs([CONFIG.buildOutput], { recursive: true });
 
   for await (const event of watcher) {
     const isTypeScriptFile = event.paths.some((path) => path.endsWith('.js'));

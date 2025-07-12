@@ -2,7 +2,7 @@
   "tasks": {
     "dev": {"dependencies": ["bundle", "serve"]},
     "serve": "deno run --watch -A ./main.ts",
-    "bundle": "deno bundle --watch ./src/main.ts --outdir ./public/js"
+    "bundle": "deno bundle --watch ./src/main.ts --outdir ./public/js --platform 'browser'"
   },
   "imports": {},
   "compilerOptions": {
